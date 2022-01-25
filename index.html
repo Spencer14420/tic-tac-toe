@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tic tac toe</title>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+
+    <style>
+        #background {
+            width: 250px;
+            height: 250px;
+            background-color: black;
+            display: grid;
+            grid-template-columns: 80px 80px 80px;
+            grid-template-rows: 80px 80px 80px;
+            grid-gap: 5px;
+        }
+        
+        .square {
+            border: none;
+            background-color: white;
+            width: 80px;
+            height: 80px;
+            padding: 0;
+        }
+
+        .oSquare {
+            border: none;
+            background-color: white;
+            width: 80px;
+            height: 80px;
+            padding: 0;
+        }
+
+        .oSquare::before {
+            content: "";
+            display: block;
+            border: 5px solid black;
+            width: 50%;
+            height: 50%;
+            border-radius: 100%;
+            margin: 0 auto 0 auto;
+        }
+
+        .xSquare {
+            border: none;
+            background-color: white;
+            position: relative;
+            width: 80px;
+            height: 80px;
+            padding: 0;
+        }
+
+        .xSquare::before {
+            content: "";
+            display: block;
+            position: absolute;
+            background-color: black;
+            top: 17.5%;
+            left: calc(50% - 2.5px);
+            width: 5px;
+            height: 65%;
+            transform: rotate(45deg);
+        }
+
+        .xSquare::after {
+            content: "";
+            display: block;
+            position: absolute;
+            background-color: black;
+            top: 17.5%;
+            left: calc(50% - 2.5px);
+            width: 5px;
+            height: 65%;
+            transform: rotate(-45deg);
+        }
+
+        #thinking {
+            position: absolute;
+            display: none;
+            font-size: 30px;
+            left: 10px;
+            transition: left 0.25s cubic-bezier(1,0,0,1);
+        }
+    </style>
+</head>
+<body>
+    <div id="background">
+        <button id="1" class="square"></button>
+        <button id="2" class="square"></button>
+        <button id="3" class="square"></button>
+        <button id="4" class="square"></button>
+        <button id="5" class="square"></button>
+        <button id="6" class="square"></button>
+        <button id="7" class="square"></button>
+        <button id="8" class="square"></button>
+        <button id="9" class="square"></button>
+    </div><br>
+    <span id="turn">Computer's turn</span><br>
+    <span id="thinking">.</span>
+
+    <script>
+        let plTurn = true;
+        let pvars = [false, false, false, false, false, false, false, false, false];
+        let cvars = [false, false, false, false, false, false, false, false, false];
+
+        // Pauses function when called.
+        function sleep(ms) {
+            return new Promise(resolve => setTimeout(resolve, ms));
+        }
+
+        // Animate dot under "Computer's turn" to simulate thinking.
+        async function thinking() {
+            let thinking = $("#thinking");
+            thinking.show();
+            await sleep(1);
+            for (let i = 0; i < 3; i++) {
+                thinking.css("left", "40px");
+                await sleep(400);
+                thinking.css("left", "10px");
+                await sleep(400);
+            }
+            computerTurn()
+            thinking.hide();
+        }
+
+        // Switch between player/computer turns.
+        const switchTurn = () => {
+            let turn = $("#turn");
+            if (plTurn) {
+                turn.html("Computer's turn");
+                plTurn = false;
+                thinking();
+            } else {
+                turn.html("Player's turn");
+                plTurn = true;
+            }
+        }
+
+        // Add an "O" to a square if it's the player's turn.
+        $(".square").click(function() {
+            if (plTurn) {
+                $(this).attr("class", "oSquare");
+                switchTurn();
+            }
+        });
+
+        // Set variables based on the status of the board.
+        const updateVars = () => {
+            for (let i = 0; i < 9; i++) {
+                let spaceClass = $("#" + (i + 1)).attr("class");
+                if (spaceClass == "oSquare") pvars[i] = true;
+                if (spaceClass == "xSquare") cvars[i] = true;
+            }
+        }
+            
+        // Detects if the player/computer is one step from winning.
+        const detectClose = () => {
+            updateVars();
+            let cCloseRows = ["ctopr", "cmidr", "cbotr", "clefc", "cmidc", "crigc", "clefd", "crigd"]
+            let pCloseRows = ["topr", "midr", "botr", "lefc", "midc", "rigc", "lefd", "rigd"];
+            let spaces = [[0, 1, 2], [3, 4, 5], [6, 7, 8], [0, 3, 6], [1, 4, 7], [2, 5, 8], [0, 4, 8], [2, 4, 6]]
+
+            for (let i = 0; i < 8; i++) {
+                if (cvars[spaces[i][0]] + cvars[spaces[i][1]] + cvars[spaces[i][2]] == 2 && pvars[spaces[i][0]] + pvars[spaces[i][1]] + pvars[spaces[i][2]] == 0)
+                    return cCloseRows[i];
+                if (pvars[spaces[i][0]] + pvars[spaces[i][1]] + pvars[spaces[i][2]] == 2 && cvars[spaces[i][0]] + cvars[spaces[i][1]] + cvars[spaces[i][2]] == 0)
+                    return pCloseRows[i];
+            }
+        }
+
+        const computerTurn = () => {
+            if (typeof detectClose() === "undefined") {
+                // Check which corners are free
+                let freeCorners = [];
+                if (!pvars[0] && !cvars[0]) freeCorners.push("1");
+                if (!pvars[2] && !cvars[2]) freeCorners.push("3");
+                if (!pvars[6] && !cvars[6]) freeCorners.push("7");
+                if (!pvars[8] && !cvars[8]) freeCorners.push("9");
+                
+                //If one corner is free, put "X" there.
+                if (freeCorners.length == 1) {
+                    $("#" + freeCorners[0]).attr("class", "xSquare");
+                    switchTurn();
+                    return;
+                }
+
+                //If multiple corners are free, choose a random corner.
+                if (freeCorners.length > 1) {
+                    let randomI = Math.floor((Math.random() * freeCorners.length) + 0);
+                    $("#" + freeCorners[randomI]).attr("class", "xSquare");
+                    switchTurn();
+                    return;
+                }
+
+                // Check which side spaces are free
+                let freeSides = [];
+                if (!pvars[1] && !cvars[1]) freeCorners.push("2");
+                if (!pvars[3] && !cvars[3]) freeCorners.push("4");
+                if (!pvars[5] && !cvars[5]) freeCorners.push("6");
+                if (!pvars[7] && !cvars[7]) freeCorners.push("8");
+
+                //If one side space is free, put "X" there.
+                if (freeSides.length == 1) {
+                    $("#" + freeSides[0]).attr("class", "xSquare");
+                    switchTurn();
+                    return;
+                }
+
+                //If multiple side spaces are free, choose a random corner.
+                if (freeSides.length > 1) {
+                    let randomI = Math.floor((Math.random() * freeSides.length) + 0);
+                    $("#" + freeSides[randomI]).attr("class", "xSquare");
+                    switchTurn();
+                    return;
+                }
+
+                if (!pvars[4] && !cvars[4]) $("#5").attr("class", "xSquare");
+                switchTurn();
+            }
+
+            // If a win is close
+            if (detectClose() == "topr" || detectClose() == "ctopr" ) {
+                let emptyCell = [pvars[0] + cvars[0], pvars[1] + cvars[1], pvars[2] + cvars[2]].indexOf(0)
+
+                if (emptyCell == 0) {
+                    $("#1").attr("class", "xSquare");
+                    switchTurn();
+                    return;
+                }
+                if (emptyCell == 1) {
+                    $("#2").attr("class", "xSquare");
+                    switchTurn();
+                    return;
+                }
+                if (emptyCell == 2) {
+                    $("#3").attr("class", "xSquare");
+                    switchTurn();
+                    return;
+                }
+            }
+
+            if (detectClose() == "midr" || detectClose() == "cmidr") {
+                let emptyCell = [pvars[3] + cvars[3], pvars[4] + cvars[4], pvars[5] + cvars[5]].indexOf(0)
+
+                if (emptyCell == 0) {
+                    $("#4").attr("class", "xSquare");
+                    switchTurn();
+                    return;
+                }
+                if (emptyCell == 1) {
+                    $("#5").attr("class", "xSquare");
+                    switchTurn();
+                    return;
+                }
+                if (emptyCell == 2) {
+                    $("#6").attr("class", "xSquare");
+                    switchTurn();
+                    return;
+                }
+            }
+
+            if (detectClose() == "botr" || detectClose() == "cbotr") {
+                let emptyCell = [pvars[6] + cvars[6], pvars[7] + cvars[7], pvars[8] + cvars[8]].indexOf(0)
+
+                if (emptyCell == 0) {
+                    $("#7").attr("class", "xSquare");
+                    switchTurn();
+                    return;
+                }
+                if (emptyCell == 1) {
+                    $("#8").attr("class", "xSquare");
+                    switchTurn();
+                    return;
+                }
+                if (emptyCell == 2) {
+                    $("#9").attr("class", "xSquare");
+                    switchTurn();
+                    return;
+                }
+            }
+
+            if (detectClose() == "lefc" || detectClose() == "clefc") {
+                let emptyCell = [pvars[0] + cvars[0], pvars[3] + cvars[3], pvars[6] + cvars[6]].indexOf(0)
+
+                if (emptyCell == 0) {
+                    $("#1").attr("class", "xSquare");
+                    switchTurn();
+                    return;
+                }
+                if (emptyCell == 1) {
+                    $("#4").attr("class", "xSquare");
+                    switchTurn();
+                    return;
+                }
+                if (emptyCell == 2) {
+                    $("#7").attr("class", "xSquare");
+                    switchTurn();
+                    return;
+                }
+            }
+
+            if (detectClose() == "midc" || detectClose() == "cmidc") {
+                let emptyCell = [pvars[1] + cvars[1], pvars[4] + cvars[4], pvars[7] + cvars[7]].indexOf(0)
+
+                if (emptyCell == 0) {
+                    $("#2").attr("class", "xSquare");
+                    switchTurn();
+                    return;
+                }
+                if (emptyCell == 1) {
+                    $("#5").attr("class", "xSquare");
+                    switchTurn();
+                    return;
+                }
+                if (emptyCell == 2) {
+                    $("#8").attr("class", "xSquare");
+                    switchTurn();
+                    return;
+                }
+            }
+
+            if (detectClose() == "rigc" || detectClose() == "crigc") {
+                let emptyCell = [pvars[2] + cvars[2], pvars[5] + cvars[5], pvars[8] + cvars[8]].indexOf(0)
+
+                if (emptyCell == 0) {
+                    $("#3").attr("class", "xSquare");
+                    switchTurn();
+                    return;
+                }
+                if (emptyCell == 1) {
+                    $("#6").attr("class", "xSquare");
+                    switchTurn();
+                    return;
+                }
+                if (emptyCell == 2) {
+                    $("#9").attr("class", "xSquare");
+                    switchTurn();
+                    return;
+                }
+            }
+
+            if (detectClose() == "lefd" || detectClose() == "clefd") {
+                let emptyCell = [pvars[0] + cvars[0], pvars[4] + cvars[4], pvars[8] + cvars[8]].indexOf(0)
+
+                if (emptyCell == 0) {
+                    $("#1").attr("class", "xSquare");
+                    switchTurn();
+                    return;
+                }
+                if (emptyCell == 1) {
+                    $("#5").attr("class", "xSquare");
+                    switchTurn();
+                    return;
+                }
+                if (emptyCell == 2) {
+                    $("#9").attr("class", "xSquare");
+                    switchTurn();
+                    return;
+                }
+            }
+
+            if (detectClose() == "rigd" || detectClose() == "crigd") {
+                let emptyCell = [pvars[2] + cvars[2], pvars[4] + cvars[4], pvars[6] + cvars[6]].indexOf(0)
+
+                if (emptyCell == 0) {
+                    $("#3").attr("class", "xSquare");
+                    switchTurn();
+                    return;
+                }
+                if (emptyCell == 1) {
+                    $("#5").attr("class", "xSquare");
+                    switchTurn();
+                    return;
+                }
+                if (emptyCell == 2) {
+                    $("#7").attr("class", "xSquare");
+                    switchTurn();
+                    return;
+                }
+            }
+        }
+
+       // thinking();
+    </script>
+</body>
+</html>
